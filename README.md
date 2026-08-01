@@ -252,7 +252,7 @@ Never Gonna Give You Up
 Example: synchronize every night at 2 AM
 
 ```cron
-0 2 * * * cd /home/USER/music-sync && /usr/bin/python3 music_sync.py sync
+0 * * * * cd /home/kuba/Code/Python/yt-dl-songs-manager && /usr/bin/python3 sync_music.py sync >> /home/kuba/Code/Python/yt-dl-songs-manager/log/sync_cron.log 2>&1
 ```
 
 ---
