@@ -109,6 +109,9 @@ failed = 0
 
 stats_lock = threading.Lock()
 
+existing_songs: Set[str] = set()
+existing_songs_lock = threading.Lock()
+
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
@@ -122,34 +125,39 @@ def run_command(command: List[str]) -> subprocess.CompletedProcess:
     )
 
 
-def load_archive(folder: Path) -> Set[str]:
-    """
-    Read yt-dlp archive.
+def extract_video_id(filename: str) -> str | None:
 
-    Format:
+    start = filename.rfind("[")
+    end = filename.rfind("]")
 
-        youtube VIDEOID
-    """
+    if start != -1 and end != -1 and end > start:
 
-    archive = folder / ".downloaded"
+        return filename[start + 1:end]
 
-    if not archive.exists():
-        return set()
+    return None
+
+
+def scan_existing_songs() -> Set[str]:
 
     ids = set()
 
-    with archive.open() as f:
+    for playlist in playlist_objects:
 
-        for line in f:
+        for ext in (
+            "*.mp3",
+            "*.opus",
+            "*.m4a",
+            "*.flac",
+            "*.ogg",
+            "*.wav",
+        ):
 
-            line = line.strip()
+            for file in playlist.folder.glob(ext):
 
-            if not line:
-                continue
+                video_id = extract_video_id(file.name)
 
-            parts = line.split()
-
-            ids.add(parts[-1])
+                if video_id:
+                    ids.add(video_id)
 
     return ids
 
@@ -184,6 +192,12 @@ for playlist in PLAYLISTS:
 
 console.print(
     f"[green]Loaded {len(playlist_objects)} playlist(s).[/green]"
+)
+
+existing_songs = scan_existing_songs()
+
+console.print(
+    f"[green]Found {len(existing_songs)} existing song(s) on disk.[/green]"
 )
 
 # -------------------------------------------------------
@@ -243,8 +257,6 @@ def queue_playlist(playlist: Playlist):
 
     global skipped
 
-    archive = load_archive(playlist.folder)
-
     entries = fetch_playlist_entries(playlist)
 
     queued = 0
@@ -259,12 +271,16 @@ def queue_playlist(playlist: Playlist):
         if not video_id:
             continue
 
-        # already downloaded
+        # already on disk (in any playlist folder)
 
-        if video_id in archive:
+        with existing_songs_lock:
 
-            skipped += 1
-            continue
+            if video_id in existing_songs:
+
+                skipped += 1
+                continue
+
+            existing_songs.add(video_id)
 
         title = entry.get("title") or video_id
 
@@ -397,20 +413,12 @@ def print_summary():
 
 
 # -------------------------------------------------------
-# Initial scan
-# -------------------------------------------------------
-
-build_queue()
-
-# -------------------------------------------------------
 # Downloader
 # -------------------------------------------------------
 
 def download_song(job: DownloadJob) -> bool:
 
     url = f"https://www.youtube.com/watch?v={job.video_id}"
-
-    archive = job.playlist.folder / ".downloaded"
 
     output = str(
         job.playlist.folder /
@@ -429,9 +437,6 @@ def download_song(job: DownloadJob) -> bool:
 
         "--audio-quality",
         CONFIG["audio_quality"],
-
-        "--download-archive",
-        str(archive),
 
         "--ignore-errors",
 
@@ -487,6 +492,8 @@ def worker(progress, task):
 
             if ok:
                 downloaded += 1
+                with existing_songs_lock:
+                    existing_songs.add(job.video_id)
             else:
                 failed += 1
 
@@ -560,33 +567,51 @@ def verify():
 
     console.rule("[bold cyan]Verifying library")
 
-    missing = 0
+    duplicates = 0
+    bad_names = 0
+
+    seen: Dict[str, str] = {}
 
     for playlist in playlist_objects:
 
-        archive = load_archive(playlist.folder)
+        for ext in (
+            "*.mp3",
+            "*.opus",
+            "*.m4a",
+            "*.flac",
+            "*.ogg",
+            "*.wav",
+        ):
 
-        files = list(playlist.folder.glob("*"))
+            for file in playlist.folder.glob(ext):
 
-        names = "\n".join(f.name for f in files)
+                video_id = extract_video_id(file.name)
 
-        for video_id in archive:
+                if not video_id:
 
-            #
-            # Every downloaded file contains
-            # [VIDEOID] in its filename.
-            #
+                    bad_names += 1
 
-            if f"[{video_id}]" not in names:
+                    console.print(
+                        f"[yellow]{playlist.name}[/yellow] "
+                        f"Cannot extract ID from {file.name}"
+                    )
 
-                missing += 1
+                    continue
 
-                console.print(
-                    f"[yellow]{playlist.name}[/yellow] "
-                    f"Missing file for {video_id}"
-                )
+                if video_id in seen:
 
-    if missing == 0:
+                    duplicates += 1
+
+                    console.print(
+                        f"[yellow]{playlist.name}[/yellow] "
+                        f"Duplicate of {seen[video_id]}: {file.name}"
+                    )
+
+                else:
+
+                    seen[video_id] = f"{playlist.name}/{file.name}"
+
+    if duplicates == 0 and bad_names == 0:
 
         console.print(
             "[green]Library verified successfully.[/green]"
@@ -595,7 +620,8 @@ def verify():
     else:
 
         console.print(
-            f"[red]{missing} missing file(s).[/red]"
+            f"[red]{duplicates} duplicate(s), "
+            f"{bad_names} bad file name(s).[/red]"
         )
 
 
