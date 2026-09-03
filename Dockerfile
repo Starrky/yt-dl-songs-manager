@@ -35,7 +35,7 @@ RUN mkdir -p /home/yt-dl-songs-manager/log
 
 # Configure cron
 RUN printf '%s\n' \
-    '0 * * * * cd /home/yt-dl-songs-manager && /usr/bin/python3 sync_music.py sync >> /home/yt-dl-songs-manager/log/sync_cron.log 2>&1' \
+    '0 * * * * cd /home/yt-dl-songs-manager && python sync_music.py sync >> /home/yt-dl-songs-manager/log/sync_cron.log 2>&1' \
     > /etc/cron.d/yt-dl-songs-manager
 
 # Correct permissions
