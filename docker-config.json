@@ -1,0 +1,12 @@
+{
+    "library": "/mnt/Downloads/",
+    "audio_format": "mp3",
+    "audio_quality": "0",
+    "parallel_playlists": 4,
+    "parallel_downloads": 8,
+    "embed_thumbnail": true,
+    "embed_metadata": true,
+    "embed_chapters": false,
+    "write_playlist_file": true,
+    "retries": 3
+}
