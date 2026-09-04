@@ -118,11 +118,17 @@ existing_songs_lock = threading.Lock()
 
 def run_command(command: List[str]) -> subprocess.CompletedProcess:
 
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        console.print(
+            f"[red]Command not found: {command[0]}[/red]"
+        )
+        raise
 
 
 def extract_video_id(filename: str) -> str | None:
@@ -219,12 +225,15 @@ def fetch_playlist_entries(playlist: Playlist):
 
     console.print(f"[cyan]Reading playlist:[/cyan] {playlist.name}")
 
-    result = run_command([
-        "yt-dlp",
-        "--flat-playlist",
-        "--dump-single-json",
-        playlist.url,
-    ])
+    try:
+        result = run_command([
+            "yt-dlp",
+            "--flat-playlist",
+            "--dump-single-json",
+            playlist.url,
+        ])
+    except FileNotFoundError:
+        return []
 
     if result.returncode != 0:
 
