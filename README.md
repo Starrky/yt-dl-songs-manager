@@ -261,9 +261,12 @@ Example: synchronize every night at 2 AM
 Get Dockerfile then:
 ```docker build --no-cache -t yt-dl-songs-manager .```
 then when creating container set:
+
 Volumes:
-host path : <your path on pc> e.g.  D:\Download\
-container path: /mnt/Downloads
+
+host path : <your path on pc> e.g.  ```D:\Download\```
+
+container path: ```/mnt/Downloads```
 
 ---
 
