@@ -7,6 +7,14 @@
         {
             "name": "Other-music",
             "url": "https://music.youtube.com/playlist?list=PLdDEueNF_b_w"
+        },
+              {
+            "name": "Rap",
+            "url": "https://music.youtube.com/playlist?list=PLBVGD7IOt300"
+        },
+              {
+            "name": "Rocky",
+            "url": "http://music.youtube.com/playlist?list=PLHk3xGevZNmA"
         }
     ]
 }
